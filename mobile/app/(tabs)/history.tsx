@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useTransactionStore } from '../../stores/transactionStore';
 import { useDraftStore } from '../../stores/draftStore';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
@@ -16,10 +16,10 @@ export default function HistoryScreen() {
   const { drafts, fetchDrafts } = useDraftStore();
   const now = new Date();
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     fetchMonth(now.getMonth() + 1, now.getFullYear());
     fetchDrafts();
-  }, []);
+  }, [fetchDrafts, fetchMonth]));
 
   const grouped: Record<string, TimelineItem[]> = {};
 

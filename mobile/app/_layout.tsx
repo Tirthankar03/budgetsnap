@@ -5,11 +5,13 @@ import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme';
 
 export default function RootLayout() {
-  const { isAuthenticated, hasCompletedOnboarding } = useAuthStore();
+  const { isAuthenticated, hasCompletedOnboarding, isInitialized } = useAuthStore();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
+    if (!isInitialized) return;
+
     const inAuthGroup = segments[0] === '(auth)';
     const inOnboarding = segments[0] === '(onboarding)';
 
@@ -20,7 +22,7 @@ export default function RootLayout() {
     } else if (isAuthenticated && hasCompletedOnboarding && (inAuthGroup || inOnboarding)) {
       router.replace('/(tabs)');
     }
-  }, [isAuthenticated, hasCompletedOnboarding, segments]);
+  }, [isAuthenticated, hasCompletedOnboarding, isInitialized, segments]);
 
   return (
     <>

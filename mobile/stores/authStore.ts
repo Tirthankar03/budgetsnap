@@ -11,9 +11,11 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   hasCompletedOnboarding: boolean;
+  isInitialized: boolean;
 
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
+  initializeAuth: () => Promise<void>;
   logout: () => void;
   setOnboardingComplete: () => void;
   updateProfile: (data: { name?: string; email?: string }) => Promise<void>;
@@ -28,16 +30,24 @@ export const useAuthStore = create<AuthState>()(
       isLoading: false,
       isAuthenticated: false,
       hasCompletedOnboarding: false,
+      isInitialized: false,
 
       login: async (email, password) => {
         set({ isLoading: true });
         try {
           const { data } = await api.post('/auth/login', { email, password });
           setToken(data.token);
+          let hasBudget = false;
+          try {
+            const budgetResponse = await api.get('/budgets/current');
+            hasBudget = Boolean(budgetResponse.data);
+          } catch {}
           set({
             user: data.user,
             token: data.token,
             isAuthenticated: true,
+            hasCompletedOnboarding: hasBudget,
+            isInitialized: true,
             isLoading: false,
           });
         } catch (err: any) {
@@ -55,11 +65,29 @@ export const useAuthStore = create<AuthState>()(
             user: data.user,
             token: data.token,
             isAuthenticated: true,
+            isInitialized: true,
             isLoading: false,
           });
         } catch (err: any) {
           set({ isLoading: false });
           throw new Error(err.response?.data?.error || 'Registration failed');
+        }
+      },
+
+      initializeAuth: async () => {
+        const { token, isAuthenticated } = get();
+        if (!token || !isAuthenticated) {
+          set({ isInitialized: true });
+          return;
+        }
+
+        try {
+          const { data } = await api.get('/budgets/current');
+          set({ hasCompletedOnboarding: Boolean(data) });
+        } catch {
+          set({ hasCompletedOnboarding: false });
+        } finally {
+          set({ isInitialized: true });
         }
       },
 
@@ -70,6 +98,7 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           isAuthenticated: false,
           hasCompletedOnboarding: false,
+          isInitialized: true,
         });
       },
 
@@ -94,13 +123,13 @@ export const useAuthStore = create<AuthState>()(
         user: state.user,
         token: state.token,
         isAuthenticated: state.isAuthenticated,
-        hasCompletedOnboarding: state.hasCompletedOnboarding,
       }),
       onRehydrateStorage: () => (state) => {
         // Sync persisted token to the token holder on app start
         if (state?.token) {
           setToken(state.token);
         }
+        void useAuthStore.getState().initializeAuth();
       },
     }
   )
